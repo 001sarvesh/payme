@@ -147,6 +147,55 @@
             border: 1px solid #d1d5db;
         }
 
+        .payment-summary {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border: 1px solid #d1d5db;
+        }
+
+        .payment-summary-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .payment-summary-row:last-child {
+            border-bottom: none;
+            font-weight: 700;
+            font-size: 16px;
+            color: #10b981;
+        }
+
+        .payment-summary-label {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .payment-summary-value {
+            color: #333;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .share-instructions {
+            background: #eff6ff;
+            border: 1px solid #3b82f6;
+            border-radius: 6px;
+            padding: 12px;
+            margin: 15px 0;
+            font-size: 13px;
+            color: #1e40af;
+        }
+
+        .share-instructions strong {
+            display: block;
+            margin-bottom: 5px;
+            color: #1e3a8a;
+        }
+
         .history-section {
             margin-top: 20px;
         }
@@ -239,6 +288,32 @@
             color: #78350f;
         }
 
+        .info-notice {
+            background: #e0f2fe;
+            border: 2px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #075985;
+        }
+
+        .info-notice strong {
+            display: block;
+            margin-bottom: 8px;
+            color: #0c4a6e;
+            font-size: 14px;
+        }
+
+        .info-notice ul {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+
+        .info-notice li {
+            margin: 5px 0;
+        }
+
         @media (max-width: 640px) {
             .card {
                 padding: 20px;
@@ -259,6 +334,16 @@
             <div class="config-notice" id="configNotice">
                 <strong>⚠️ Setup Required</strong>
                 Please update your UPI ID in the code (line 418) before using this tool.
+            </div>
+
+            <div class="info-notice">
+                <strong>ℹ️ Important Information for Your Clients:</strong>
+                <ul>
+                    <li><strong>Universal UPI Support:</strong> Payment links work with ALL UPI apps (PhonePe, Google Pay, Paytm, BHIM, etc.)</li>
+                    <li><strong>"Amount Not Debited" Message:</strong> If your client sees this message, it means they viewed the link but didn't complete the payment. Ask them to click the link again and complete the transaction.</li>
+                    <li><strong>Best Practice:</strong> Share via WhatsApp using the button below - it includes step-by-step instructions for your clients.</li>
+                    <li><strong>Privacy:</strong> When you share on WhatsApp, clients will see a secure UPI payment link. The payment goes directly to your configured UPI ID.</li>
+                </ul>
             </div>
 
             <form id="paymentForm">
@@ -287,9 +372,16 @@
 
             <div class="result-box" id="resultBox">
                 <h3 style="color: #059669; margin-bottom: 10px;">✅ Payment Link Generated!</h3>
-                <div class="payment-link" id="paymentLink"></div>
-                <button class="button button-secondary" onclick="copyLink()">📋 Copy Link</button>
+
+                <div class="payment-summary" id="paymentSummary"></div>
+
+                <div class="share-instructions">
+                    <strong>📤 How to Share:</strong>
+                    Use the WhatsApp button below to send a professional payment request. Your client will receive clear instructions on how to complete the payment.
+                </div>
+
                 <button class="button button-whatsapp" onclick="shareWhatsApp()">📱 Share on WhatsApp</button>
+                <button class="button button-secondary" onclick="copyLink()">📋 Copy Payment Link</button>
             </div>
         </div>
 
@@ -345,8 +437,28 @@
             currentPaymentLink = upiLink;
             currentClientName = clientName;
 
-            // Display the link
-            document.getElementById('paymentLink').textContent = upiLink;
+            // Display the payment summary
+            const summaryHTML = `
+                <div class="payment-summary-row">
+                    <span class="payment-summary-label">Client:</span>
+                    <span class="payment-summary-value">${clientName}</span>
+                </div>
+                <div class="payment-summary-row">
+                    <span class="payment-summary-label">Purpose:</span>
+                    <span class="payment-summary-value">${purpose}</span>
+                </div>
+                ${reference ? `
+                <div class="payment-summary-row">
+                    <span class="payment-summary-label">Reference:</span>
+                    <span class="payment-summary-value">${reference}</span>
+                </div>
+                ` : ''}
+                <div class="payment-summary-row">
+                    <span class="payment-summary-label">Total Amount:</span>
+                    <span class="payment-summary-value">₹${amount}</span>
+                </div>
+            `;
+            document.getElementById('paymentSummary').innerHTML = summaryHTML;
             document.getElementById('resultBox').classList.add('show');
 
             // Save to history
@@ -363,25 +475,57 @@
             document.getElementById('resultBox').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         });
 
-        // Copy link to clipboard
+        // Copy link to clipboard with fallback
         function copyLink() {
-            navigator.clipboard.writeText(currentPaymentLink).then(() => {
-                const btn = event.target;
-                const originalText = btn.textContent;
-                btn.textContent = '✅ Copied!';
-                btn.style.background = '#059669';
-                setTimeout(() => {
-                    btn.textContent = originalText;
-                    btn.style.background = '';
-                }, 2000);
-            }).catch(err => {
-                alert('Failed to copy. Please copy manually.');
-            });
+            // Try modern clipboard API first
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(currentPaymentLink).then(() => {
+                    showCopySuccess();
+                }).catch(err => {
+                    fallbackCopy();
+                });
+            } else {
+                fallbackCopy();
+            }
+        }
+
+        function showCopySuccess() {
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = '✅ Copied!';
+            btn.style.background = '#059669';
+            setTimeout(() => {
+                btn.textContent = originalText;
+                btn.style.background = '';
+            }, 2000);
+        }
+
+        function fallbackCopy() {
+            const textArea = document.createElement('textarea');
+            textArea.value = currentPaymentLink;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                document.execCommand('copy');
+                showCopySuccess();
+            } catch (err) {
+                alert('Copy failed. Please use the Share on WhatsApp button instead or copy the link manually.');
+            } finally {
+                document.body.removeChild(textArea);
+            }
         }
 
         // Share via WhatsApp
         function shareWhatsApp() {
-            const message = `Hi ${currentClientName},\n\nPlease complete your payment using this link:\n\n${currentPaymentLink}\n\nThank you!`;
+            const amount = document.getElementById('amount').value.trim();
+            const purpose = document.getElementById('purpose').value.trim();
+
+            const message = `Hi ${currentClientName},\n\n💳 *Payment Request from ${CONFIG.businessName}*\n\nAmount: ₹${amount}\nPurpose: ${purpose}\n\n📱 *How to Pay:*\n1. Click the link below\n2. Choose your UPI app (PhonePe, GPay, Paytm, etc.)\n3. Verify the amount and complete payment\n\n${currentPaymentLink}\n\n✅ After payment, please send me a screenshot of the confirmation.\n\nThank you!`;
             const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
             window.open(whatsappUrl, '_blank');
         }
